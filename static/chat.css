@@ -1,0 +1,29 @@
+.container {
+    width: 400px;
+    height: 800px;
+}
+
+.chat {
+    overflow-y: scroll;
+    border-style: solid;
+    border-width: thin;
+    border-color: gray;
+    height: 100%;
+    padding: 2px;
+}
+
+.msgInput {
+    margin-top: 8px;
+    border-width: thin;
+    border-color: gray;
+    width: 100%;
+    padding: 4px;
+}
+
+.msgItem {
+    font-size: medium;
+}
+
+.oob {
+    color: gray;
+}

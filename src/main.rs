@@ -1,6 +1,7 @@
-use std::{convert::Infallible, sync::Arc};
+use std::{convert::Infallible, path::Path, process::Command, sync::Arc};
 
 use futures::{FutureExt, StreamExt};
+use notify::{RecursiveMode, Watcher};
 use serde::Serialize;
 use tokio::sync::{
     mpsc::{unbounded_channel, UnboundedSender},
@@ -30,14 +31,38 @@ type Clients = Arc<RwLock<Vec<Client>>>;
 
 #[tokio::main]
 async fn main() {
+    println!("Watching chat.ts for changes");
+    let mut watcher =
+        notify::recommended_watcher(|res: Result<notify::Event, notify::Error>| match res {
+            Ok(event) => match event.kind {
+                notify::EventKind::Modify(_) => {
+                    println!("Recompiling ts... ");
+                    Command::new("tsc")
+                        .args(["chat.ts", "--outFile", "static/chat.js"])
+                        .output()
+                        .unwrap();
+                }
+                _ => (),
+            },
+            Err(e) => println!("chat.ts watch error: {:?}", e),
+        })
+        .unwrap();
+
+    watcher
+        .watch(Path::new("chat.ts"), RecursiveMode::NonRecursive)
+        .unwrap();
+
     let clients: Clients = Arc::new(RwLock::new(Vec::new()));
 
+    let index = warp::path::end().and(warp::fs::file("static/index.html"));
+    let js = warp::path("chat.js").and(warp::fs::file("static/chat.js"));
+    let css = warp::path("chat.css").and(warp::fs::file("static/chat.css"));
     let stream = warp::path("stream")
         .and(warp::ws())
         .and(with_clients(clients))
         .and_then(handle_connection);
 
-    let routes = stream;
+    let routes = index.or(js).or(css).or(stream);
     warp::serve(routes).run(([127, 0, 0, 1], 8080)).await;
 }
 
